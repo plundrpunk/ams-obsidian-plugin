@@ -1,0 +1,11 @@
+{
+  "id": "ams-memory-companion",
+  "name": "AMS Memory Companion",
+  "version": "0.2.0",
+  "minAppVersion": "1.5.0",
+  "description": "Search AMS memories, capture notes, and sync your vault with the AI Agent Memory System. Every AMS memory becomes a human-readable Obsidian note with wikilinks for Graph View.",
+  "author": "Drew Rutledge",
+  "authorUrl": "https://github.com/andrewrutledge",
+  "isDesktopOnly": false,
+  "fundingUrl": ""
+}

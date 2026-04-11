@@ -1,0 +1,16 @@
+{
+  "name": "ams-memory-companion",
+  "version": "0.2.0",
+  "description": "Obsidian plugin for the AI Agent Memory System backend",
+  "private": true,
+  "scripts": {
+    "build": "node esbuild.config.mjs --production",
+    "dev": "node esbuild.config.mjs --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.30",
+    "esbuild": "^0.25.2",
+    "obsidian": "^1.8.7",
+    "typescript": "^5.8.3"
+  }
+}
