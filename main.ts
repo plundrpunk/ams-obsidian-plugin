@@ -875,7 +875,7 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
 class SearchModal extends Modal {
   private readonly plugin: AMSMemoryCompanionPlugin;
   private query: string;
-  private scope: SearchScope;
+  private searchScope: SearchScope;
   private memoryTier: MemoryTier | "" = "";
   private limit: number;
   private resultsEl!: HTMLDivElement;
@@ -884,7 +884,7 @@ class SearchModal extends Modal {
     super(app);
     this.plugin = plugin;
     this.query = initialQuery;
-    this.scope = plugin.settings.defaultSearchScope;
+    this.searchScope = plugin.settings.defaultSearchScope;
     this.limit = plugin.settings.defaultSearchLimit;
   }
 
@@ -918,10 +918,10 @@ class SearchModal extends Modal {
     scopeField.createEl("label", { text: "Scope" });
     const scopeSelect = scopeField.createEl("select");
     SEARCH_SCOPES.forEach((scope) => {
-      scopeSelect.add(new Option(scope, scope, scope === this.scope, scope === this.scope));
+      scopeSelect.add(new Option(scope, scope, scope === this.searchScope, scope === this.searchScope));
     });
     scopeSelect.addEventListener("change", () => {
-      this.scope = scopeSelect.value as SearchScope;
+      this.searchScope = scopeSelect.value as SearchScope;
     });
 
     const tierField = filtersEl.createDiv({ cls: "ams-field" });
@@ -983,7 +983,7 @@ class SearchModal extends Modal {
 
     try {
       const response = await this.plugin.searchMemories(this.query, {
-        scope: this.scope,
+        scope: this.searchScope,
         memoryTier: this.memoryTier,
         limit: this.limit,
       });
@@ -1001,8 +1001,11 @@ class SearchModal extends Modal {
       return;
     }
 
+    // ⚡ Bolt: Batch DOM insertions to prevent N repaints/reflows during render
+    const fragment = document.createDocumentFragment();
+
     results.forEach((result) => {
-      const card = this.resultsEl.createDiv({ cls: "ams-result-card" });
+      const card = fragment.createDiv({ cls: "ams-result-card" });
       const header = card.createDiv({ cls: "ams-result-header" });
       header.createEl("h3", {
         cls: "ams-result-title",
@@ -1057,6 +1060,8 @@ class SearchModal extends Modal {
           void this.plugin.insertWikiLink(result.memory.file_path);
         });
     });
+
+    this.resultsEl.appendChild(fragment);
   }
 }
 
@@ -1309,8 +1314,11 @@ class MemoryGraphModal extends Modal {
 
     const resultsEl = container.createDiv({ cls: "ams-results" });
 
+    // ⚡ Bolt: Batch DOM insertions to prevent N repaints/reflows during render
+    const fragment = document.createDocumentFragment();
+
     links.forEach((link) => {
-      const card = resultsEl.createDiv({ cls: "ams-result-card" });
+      const card = fragment.createDiv({ cls: "ams-result-card" });
       const header = card.createDiv({ cls: "ams-result-header" });
       const title =
         direction === "outgoing"
@@ -1338,6 +1346,8 @@ class MemoryGraphModal extends Modal {
           void this.plugin.previewMemory(targetId);
         });
     });
+
+    resultsEl.appendChild(fragment);
   }
 }
 

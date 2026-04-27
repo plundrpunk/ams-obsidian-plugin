@@ -593,7 +593,7 @@ var SearchModal = class extends import_obsidian.Modal {
     this.memoryTier = "";
     this.plugin = plugin;
     this.query = initialQuery;
-    this.scope = plugin.settings.defaultSearchScope;
+    this.searchScope = plugin.settings.defaultSearchScope;
     this.limit = plugin.settings.defaultSearchLimit;
   }
   onOpen() {
@@ -619,10 +619,10 @@ var SearchModal = class extends import_obsidian.Modal {
     scopeField.createEl("label", { text: "Scope" });
     const scopeSelect = scopeField.createEl("select");
     SEARCH_SCOPES.forEach((scope) => {
-      scopeSelect.add(new Option(scope, scope, scope === this.scope, scope === this.scope));
+      scopeSelect.add(new Option(scope, scope, scope === this.searchScope, scope === this.searchScope));
     });
     scopeSelect.addEventListener("change", () => {
-      this.scope = scopeSelect.value;
+      this.searchScope = scopeSelect.value;
     });
     const tierField = filtersEl.createDiv({ cls: "ams-field" });
     tierField.createEl("label", { text: "Tier" });
@@ -669,7 +669,7 @@ var SearchModal = class extends import_obsidian.Modal {
     this.renderEmptyState("Searching AMS...");
     try {
       const response = await this.plugin.searchMemories(this.query, {
-        scope: this.scope,
+        scope: this.searchScope,
         memoryTier: this.memoryTier,
         limit: this.limit
       });
@@ -684,8 +684,9 @@ var SearchModal = class extends import_obsidian.Modal {
       this.renderEmptyState("No memories matched this search.");
       return;
     }
+    const fragment = document.createDocumentFragment();
     results.forEach((result) => {
-      const card = this.resultsEl.createDiv({ cls: "ams-result-card" });
+      const card = fragment.createDiv({ cls: "ams-result-card" });
       const header = card.createDiv({ cls: "ams-result-header" });
       header.createEl("h3", {
         cls: "ams-result-title",
@@ -726,6 +727,7 @@ var SearchModal = class extends import_obsidian.Modal {
         void this.plugin.insertWikiLink(result.memory.file_path);
       });
     });
+    this.resultsEl.appendChild(fragment);
   }
 };
 var CaptureMemoryModal = class extends import_obsidian.Modal {
@@ -902,8 +904,9 @@ var MemoryGraphModal = class extends import_obsidian.Modal {
       return;
     }
     const resultsEl = container.createDiv({ cls: "ams-results" });
+    const fragment = document.createDocumentFragment();
     links.forEach((link) => {
-      const card = resultsEl.createDiv({ cls: "ams-result-card" });
+      const card = fragment.createDiv({ cls: "ams-result-card" });
       const header = card.createDiv({ cls: "ams-result-header" });
       const title = direction === "outgoing" ? link.target_title ?? link.target_memory_id : link.source_title ?? link.source_memory_id;
       header.createEl("h4", { cls: "ams-result-title", text: title });
@@ -923,6 +926,7 @@ var MemoryGraphModal = class extends import_obsidian.Modal {
         void this.plugin.previewMemory(targetId);
       });
     });
+    resultsEl.appendChild(fragment);
   }
 };
 var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
