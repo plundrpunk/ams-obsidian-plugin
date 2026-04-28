@@ -4,6 +4,7 @@
   "description": "Obsidian plugin for the AI Agent Memory System backend",
   "private": true,
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "build": "node esbuild.config.mjs --production",
     "dev": "node esbuild.config.mjs --watch"
   },
