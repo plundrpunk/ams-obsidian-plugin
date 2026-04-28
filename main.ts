@@ -1001,8 +1001,10 @@ class SearchModal extends Modal {
       return;
     }
 
+    const fragment = document.createDocumentFragment();
     results.forEach((result) => {
-      const card = this.resultsEl.createDiv({ cls: "ams-result-card" });
+      // @ts-ignore - DocumentFragment supports createDiv in Obsidian
+      const card = fragment.createDiv({ cls: "ams-result-card" });
       const header = card.createDiv({ cls: "ams-result-header" });
       header.createEl("h3", {
         cls: "ams-result-title",
@@ -1057,6 +1059,9 @@ class SearchModal extends Modal {
           void this.plugin.insertWikiLink(result.memory.file_path);
         });
     });
+
+    // Performance optimization: batch DOM insertions to prevent layout thrashing
+    this.resultsEl.appendChild(fragment);
   }
 }
 
@@ -1309,8 +1314,10 @@ class MemoryGraphModal extends Modal {
 
     const resultsEl = container.createDiv({ cls: "ams-results" });
 
+    const fragment = document.createDocumentFragment();
     links.forEach((link) => {
-      const card = resultsEl.createDiv({ cls: "ams-result-card" });
+      // @ts-ignore - DocumentFragment supports createDiv in Obsidian
+      const card = fragment.createDiv({ cls: "ams-result-card" });
       const header = card.createDiv({ cls: "ams-result-header" });
       const title =
         direction === "outgoing"
@@ -1338,6 +1345,9 @@ class MemoryGraphModal extends Modal {
           void this.plugin.previewMemory(targetId);
         });
     });
+
+    // Performance optimization: batch DOM insertions to prevent layout thrashing
+    resultsEl.appendChild(fragment);
   }
 }
 
