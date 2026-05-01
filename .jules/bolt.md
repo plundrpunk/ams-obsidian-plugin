@@ -1,3 +1,6 @@
 ## 2026-04-27 - DocumentFragment for Obsidian Modals
 **Learning:** Obsidian modals typically render lists of elements (like search results or graphs) sequentially to a parent DOM node, causing multiple reflows/repaints per render. The Obsidian `Node` interface polyfills `createDiv`/`createEl` on `DocumentFragment`s as well, so we can use standard DOM batching techniques without losing the clean Obsidian DOM builder API.
 **Action:** When rendering lists of items in custom Modals (Search, Graphs), build the items inside a `document.createDocumentFragment()` and append the fragment to the container once at the end.
+## 2026-04-28 - Obsidian Plugin Data Saves
+**Learning:** In Obsidian plugins, calling `saveData` on every setting change (especially text inputs) can cause synchronous disk I/O bottlenecks and UI lag. While debouncing `saveData` is an effective optimization, critical configuration saves (like those in an onboarding modal before an initial sync) still require an immediate, synchronous save to ensure state persistence if the app crashes or restarts during long-running tasks.
+**Action:** When debouncing plugin saves in an Obsidian plugin, provide an immediate `saveSettingsImmediate()` alternative for critical application state checkpoints (like completing onboarding).

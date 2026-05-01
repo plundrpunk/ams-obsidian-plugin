@@ -94,6 +94,14 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
+    // ⚡ Bolt: Debounce disk writes to prevent UI lag on rapid setting changes
+    this.requestSaveData = (0, import_obsidian.debounce)(
+      () => {
+        void this.saveData(this.settings);
+      },
+      1e3,
+      true
+    );
   }
   async onload() {
     await this.loadSettings();
@@ -174,6 +182,9 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
     };
   }
   async saveSettings() {
+    this.requestSaveData();
+  }
+  async saveSettingsImmediate() {
     await this.saveData(this.settings);
   }
   getActiveMarkdownView() {
@@ -1180,7 +1191,7 @@ var AMSOnboardingModal = class extends import_obsidian.Modal {
     this.plugin.settings.apiBaseUrl = normalizeApiBaseUrl(this.apiBaseUrl);
     this.plugin.settings.apiKey = this.apiKey;
     this.plugin.settings.onboardingCompleted = true;
-    await this.plugin.saveSettings();
+    await this.plugin.saveSettingsImmediate();
   }
   async saveOnly() {
     await this.persistSettings();
@@ -1197,7 +1208,7 @@ var AMSOnboardingModal = class extends import_obsidian.Modal {
         true
       );
       this.plugin.settings.onboardingCompleted = false;
-      await this.plugin.saveSettings();
+      await this.plugin.saveSettingsImmediate();
       return;
     }
     this.showStatus("Connected. Checking AMS for existing memories...");
