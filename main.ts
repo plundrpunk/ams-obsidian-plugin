@@ -1,4 +1,5 @@
 import {
+  debounce,
   App,
   ButtonComponent,
   MarkdownView,
@@ -231,6 +232,15 @@ function isUsableMemoryContent(content: string | null | undefined): content is s
 export default class AMSMemoryCompanionPlugin extends Plugin {
   settings: AMSPluginSettings = DEFAULT_SETTINGS;
 
+  // ⚡ Bolt: Debounce disk writes to prevent UI lag on rapid setting changes
+  private requestSaveData = debounce(
+    () => {
+      void this.saveData(this.settings);
+    },
+    1000,
+    true
+  );
+
   async onload(): Promise<void> {
     await this.loadSettings();
 
@@ -323,6 +333,10 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
   }
 
   async saveSettings(): Promise<void> {
+    this.requestSaveData();
+  }
+
+  async saveSettingsImmediate(): Promise<void> {
     await this.saveData(this.settings);
   }
 
@@ -1700,7 +1714,7 @@ class AMSOnboardingModal extends Modal {
     this.plugin.settings.apiBaseUrl = normalizeApiBaseUrl(this.apiBaseUrl);
     this.plugin.settings.apiKey = this.apiKey;
     this.plugin.settings.onboardingCompleted = true;
-    await this.plugin.saveSettings();
+    await this.plugin.saveSettingsImmediate();
   }
 
   private async saveOnly(): Promise<void> {
@@ -1721,7 +1735,7 @@ class AMSOnboardingModal extends Modal {
       );
       // Don't mark onboarding complete if connection fails
       this.plugin.settings.onboardingCompleted = false;
-      await this.plugin.saveSettings();
+      await this.plugin.saveSettingsImmediate();
       return;
     }
 
