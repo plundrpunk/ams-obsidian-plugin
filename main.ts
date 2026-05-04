@@ -10,6 +10,7 @@ import {
   TFile,
   normalizePath,
   requestUrl,
+  debounce,
 } from "obsidian";
 
 type MemoryTier = "episodic" | "semantic" | "procedural";
@@ -325,6 +326,11 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
   }
+
+  // ⚡ Bolt: Debounce saveData to avoid performance bottlenecks and UI lag from frequent disk I/O writes
+  saveSettingsDebounced = debounce(async () => {
+    await this.saveSettings();
+  }, 500, true);
 
   getActiveMarkdownView(): MarkdownView | null {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -1373,7 +1379,7 @@ class AMSSettingTab extends PluginSettingTab {
         text.setValue(this.plugin.settings.apiBaseUrl);
         text.onChange(async (value) => {
           this.plugin.settings.apiBaseUrl = normalizeApiBaseUrl(value);
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1386,7 +1392,7 @@ class AMSSettingTab extends PluginSettingTab {
         text.setValue(this.plugin.settings.apiKey);
         text.onChange(async (value) => {
           this.plugin.settings.apiKey = value.trim();
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1397,7 +1403,7 @@ class AMSSettingTab extends PluginSettingTab {
         text.setValue(this.plugin.settings.sourceAgent);
         text.onChange(async (value) => {
           this.plugin.settings.sourceAgent = value.trim() || "obsidian-plugin";
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1409,7 +1415,7 @@ class AMSSettingTab extends PluginSettingTab {
         dropdown.setValue(this.plugin.settings.defaultMemoryTier);
         dropdown.onChange(async (value) => {
           this.plugin.settings.defaultMemoryTier = value as MemoryTier;
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1421,7 +1427,7 @@ class AMSSettingTab extends PluginSettingTab {
         dropdown.setValue(this.plugin.settings.defaultEntityType);
         dropdown.onChange(async (value) => {
           this.plugin.settings.defaultEntityType = value as EntityType;
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1436,7 +1442,7 @@ class AMSSettingTab extends PluginSettingTab {
         text.setValue(String(this.plugin.settings.defaultImportance));
         text.onChange(async (value) => {
           this.plugin.settings.defaultImportance = clampImportance(Number(value));
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1448,7 +1454,7 @@ class AMSSettingTab extends PluginSettingTab {
         dropdown.setValue(this.plugin.settings.defaultSearchScope);
         dropdown.onChange(async (value) => {
           this.plugin.settings.defaultSearchScope = value as SearchScope;
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1463,7 +1469,7 @@ class AMSSettingTab extends PluginSettingTab {
         text.onChange(async (value) => {
           const parsed = Number(value);
           this.plugin.settings.defaultSearchLimit = Math.min(100, Math.max(1, parsed || 10));
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1474,7 +1480,7 @@ class AMSSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.openCreatedNote);
         toggle.onChange(async (value) => {
           this.plugin.settings.openCreatedNote = value;
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1486,7 +1492,7 @@ class AMSSettingTab extends PluginSettingTab {
         text.setValue(this.plugin.settings.knowledgeMapNotePath);
         text.onChange(async (value) => {
           this.plugin.settings.knowledgeMapNotePath = value.trim() || "AMS/Knowledge Graph.md";
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 
@@ -1497,7 +1503,7 @@ class AMSSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.openKnowledgeMapAfterSync);
         toggle.onChange(async (value) => {
           this.plugin.settings.openKnowledgeMapAfterSync = value;
-          await this.plugin.saveSettings();
+          this.plugin.saveSettingsDebounced();
         });
       });
 

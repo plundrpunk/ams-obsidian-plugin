@@ -94,6 +94,10 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
     this.settings = DEFAULT_SETTINGS;
+    // ⚡ Bolt: Debounce saveData to avoid performance bottlenecks and UI lag from frequent disk I/O writes
+    this.saveSettingsDebounced = (0, import_obsidian.debounce)(async () => {
+      await this.saveSettings();
+    }, 500, true);
   }
   async onload() {
     await this.loadSettings();
@@ -943,7 +947,7 @@ var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
       text.setValue(this.plugin.settings.apiBaseUrl);
       text.onChange(async (value) => {
         this.plugin.settings.apiBaseUrl = normalizeApiBaseUrl(value);
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("AMS API key").setDesc("Optional unless AMS authentication is enabled.").addText((text) => {
@@ -952,14 +956,14 @@ var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
       text.setValue(this.plugin.settings.apiKey);
       text.onChange(async (value) => {
         this.plugin.settings.apiKey = value.trim();
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Source agent").setDesc("Sent as source_agent and X-Agent-ID for AMS logging.").addText((text) => {
       text.setValue(this.plugin.settings.sourceAgent);
       text.onChange(async (value) => {
         this.plugin.settings.sourceAgent = value.trim() || "obsidian-plugin";
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Default memory tier").setDesc("Preselected when capturing notes or selections.").addDropdown((dropdown) => {
@@ -967,7 +971,7 @@ var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
       dropdown.setValue(this.plugin.settings.defaultMemoryTier);
       dropdown.onChange(async (value) => {
         this.plugin.settings.defaultMemoryTier = value;
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Default entity type").setDesc("Preselected when capturing notes or selections.").addDropdown((dropdown) => {
@@ -975,7 +979,7 @@ var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
       dropdown.setValue(this.plugin.settings.defaultEntityType);
       dropdown.onChange(async (value) => {
         this.plugin.settings.defaultEntityType = value;
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Default importance").setDesc("Value between 0 and 1 used for new memories.").addText((text) => {
@@ -986,7 +990,7 @@ var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
       text.setValue(String(this.plugin.settings.defaultImportance));
       text.onChange(async (value) => {
         this.plugin.settings.defaultImportance = clampImportance(Number(value));
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Default search scope").setDesc("Search visibility scope used by the search modal.").addDropdown((dropdown) => {
@@ -994,7 +998,7 @@ var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
       dropdown.setValue(this.plugin.settings.defaultSearchScope);
       dropdown.onChange(async (value) => {
         this.plugin.settings.defaultSearchScope = value;
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Default search limit").setDesc("Maximum results fetched by default.").addText((text) => {
@@ -1005,14 +1009,14 @@ var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
       text.onChange(async (value) => {
         const parsed = Number(value);
         this.plugin.settings.defaultSearchLimit = Math.min(100, Math.max(1, parsed || 10));
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Open created note automatically").setDesc("Open the AMS-created vault note after capture if it exists in this vault.").addToggle((toggle) => {
       toggle.setValue(this.plugin.settings.openCreatedNote);
       toggle.onChange(async (value) => {
         this.plugin.settings.openCreatedNote = value;
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Knowledge graph note path").setDesc("Local note path used for the synced AMS knowledge map.").addText((text) => {
@@ -1020,14 +1024,14 @@ var AMSSettingTab = class extends import_obsidian.PluginSettingTab {
       text.setValue(this.plugin.settings.knowledgeMapNotePath);
       text.onChange(async (value) => {
         this.plugin.settings.knowledgeMapNotePath = value.trim() || "AMS/Knowledge Graph.md";
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Open knowledge graph after refresh").setDesc("Open the local knowledge graph note after syncing it from AMS.").addToggle((toggle) => {
       toggle.setValue(this.plugin.settings.openKnowledgeMapAfterSync);
       toggle.onChange(async (value) => {
         this.plugin.settings.openKnowledgeMapAfterSync = value;
-        await this.plugin.saveSettings();
+        this.plugin.saveSettingsDebounced();
       });
     });
     new import_obsidian.Setting(containerEl).setName("Connection check").setDesc("Verify the plugin can talk to AMS using the current settings.").addButton((button) => {
