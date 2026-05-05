@@ -64,6 +64,10 @@ interface AMSKnowledgeMapResponse {
   token_count: number;
 }
 
+interface AMSKnowledgeMapCache extends AMSKnowledgeMapResponse {
+  cached_at: string;
+}
+
 interface AMSMemoryLink {
   id: string;
   source_memory_id: string;
@@ -121,6 +125,7 @@ interface AMSPluginSettings {
   openCreatedNote: boolean;
   knowledgeMapNotePath: string;
   openKnowledgeMapAfterSync: boolean;
+  knowledgeMapCache: AMSKnowledgeMapCache | null;
   onboardingCompleted: boolean;
 }
 
@@ -153,6 +158,7 @@ const DEFAULT_SETTINGS: AMSPluginSettings = {
   openCreatedNote: true,
   knowledgeMapNotePath: "AMS/Knowledge Graph.md",
   openKnowledgeMapAfterSync: true,
+  knowledgeMapCache: null,
   onboardingCompleted: false,
 };
 
@@ -227,6 +233,32 @@ function isUsableMemoryContent(content: string | null | undefined): content is s
   }
 
   return content.trim() !== "[Content unavailable - vault file missing]";
+}
+
+function normalizeKnowledgeMapCache(value: unknown): AMSKnowledgeMapCache | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Partial<AMSKnowledgeMapCache>;
+  if (typeof candidate.memory_id !== "string" || !isUsableMemoryContent(candidate.content)) {
+    return null;
+  }
+
+  return {
+    memory_id: candidate.memory_id,
+    content: candidate.content,
+    map_version: Number(candidate.map_version ?? 1) || 1,
+    last_updated: typeof candidate.last_updated === "string" ? candidate.last_updated : null,
+    token_count: Number(candidate.token_count ?? estimateTokenCount(candidate.content)) || 0,
+    cached_at: typeof candidate.cached_at === "string" ? candidate.cached_at : new Date().toISOString(),
+  };
+}
+
+function scoreKnowledgeMapCandidate(result: AMSSearchResult): number {
+  const archivePenalty = result.memory.file_path.startsWith("99_Archive/") ? -1 : 0;
+  const conflictPenalty = result.memory.file_path.includes("sync-conflict") ? -1 : 0;
+  return archivePenalty + conflictPenalty + Date.parse(result.memory.creation_timestamp);
 }
 
 export default class AMSMemoryCompanionPlugin extends Plugin {
@@ -320,6 +352,7 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
         Number(loaded?.defaultImportance ?? DEFAULT_SETTINGS.defaultImportance),
       ),
       defaultSearchLimit: Number(loaded?.defaultSearchLimit ?? DEFAULT_SETTINGS.defaultSearchLimit),
+      knowledgeMapCache: normalizeKnowledgeMapCache(loaded?.knowledgeMapCache),
     };
   }
 
@@ -458,62 +491,33 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
 
   async getKnowledgeMap(): Promise<AMSKnowledgeMapResponse> {
     try {
-      return await this.apiRequest<AMSKnowledgeMapResponse>("/knowledge-map/current");
+      const map = await this.apiRequest<AMSKnowledgeMapResponse>("/knowledge-map/current");
+      await this.persistKnowledgeMapCache(map);
+      return map;
     } catch (primaryError) {
-      const searchResponse = await this.apiRequest<AMSSearchResponse>("/api/v1/memories/search", {
-        method: "POST",
-        body: {
-          query: "knowledge map",
-          limit: 10,
-          scope: "global",
-          tags: ["knowledge-map"],
-        },
-      });
-
-      const candidates = searchResponse.results
-        .filter((result) => (result.memory.tags ?? []).includes("knowledge-map"))
-        .sort((left, right) => {
-          const archivePenalty = (value: string) => (value.startsWith("99_Archive/") ? -1 : 0);
-          const conflictPenalty = (value: string) => (value.includes("sync-conflict") ? -1 : 0);
-          const leftScore =
-            archivePenalty(left.memory.file_path) +
-            conflictPenalty(left.memory.file_path) +
-            Date.parse(left.memory.creation_timestamp);
-          const rightScore =
-            archivePenalty(right.memory.file_path) +
-            conflictPenalty(right.memory.file_path) +
-            Date.parse(right.memory.creation_timestamp);
-          return rightScore - leftScore;
-        });
-
-      for (const candidate of candidates) {
-        const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
-        const apiContent = apiMemory?.content;
-        const localContent = await this.readVaultNoteContent(candidate.memory.file_path);
-        const resolvedContent = isUsableMemoryContent(apiContent)
-          ? apiContent
-          : isUsableMemoryContent(localContent)
-            ? localContent
-            : null;
-
-        if (!resolvedContent) {
-          continue;
-        }
-
-        const rawVersion = apiMemory?.memory_metadata?.map_version ?? candidate.memory.memory_metadata?.map_version;
-        const mapVersion =
-          typeof rawVersion === "number" ? rawVersion : Number(rawVersion ?? 1) || 1;
-
-        return {
-          memory_id: candidate.memory.memory_id,
-          content: resolvedContent,
-          map_version: mapVersion,
-          last_updated: candidate.memory.last_modified,
-          token_count: estimateTokenCount(resolvedContent),
-        };
+      let finalError: unknown = primaryError;
+      const localMap = await this.readKnowledgeMapNoteFromVault();
+      if (localMap) {
+        await this.persistKnowledgeMapCache(localMap);
+        return localMap;
       }
 
-      throw primaryError;
+      try {
+        const searchFallback = await this.findKnowledgeMapFromSearch();
+        if (searchFallback) {
+          await this.persistKnowledgeMapCache(searchFallback);
+          return searchFallback;
+        }
+      } catch (fallbackError) {
+        finalError = fallbackError;
+      }
+
+      const cachedMap = this.getCachedKnowledgeMap();
+      if (cachedMap) {
+        return cachedMap;
+      }
+
+      throw finalError;
     }
   }
 
@@ -807,6 +811,132 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
     } catch (_error) {
       return null;
     }
+  }
+
+  private async findKnowledgeMapFromSearch(): Promise<AMSKnowledgeMapResponse | null> {
+    const searchResponse = await this.apiRequest<AMSSearchResponse>("/api/v1/memories/search", {
+      method: "POST",
+      body: {
+        query: "knowledge map",
+        limit: 10,
+        scope: "global",
+        tags: ["knowledge-map"],
+      },
+    });
+
+    const candidates = searchResponse.results
+      .filter((result) => (result.memory.tags ?? []).includes("knowledge-map"))
+      .map((result) => ({ result, score: scoreKnowledgeMapCandidate(result) }))
+      .sort((left, right) => right.score - left.score)
+      .map((item) => item.result);
+
+    for (const candidate of candidates) {
+      const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
+      let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
+      if (!resolvedContent) {
+        resolvedContent = await this.readVaultNoteContent(candidate.memory.file_path);
+      }
+
+      if (!resolvedContent) {
+        continue;
+      }
+
+      const rawVersion = apiMemory?.memory_metadata?.map_version ?? candidate.memory.memory_metadata?.map_version;
+      const mapVersion = typeof rawVersion === "number" ? rawVersion : Number(rawVersion ?? 1) || 1;
+
+      return {
+        memory_id: candidate.memory.memory_id,
+        content: resolvedContent,
+        map_version: mapVersion,
+        last_updated: candidate.memory.last_modified,
+        token_count: estimateTokenCount(resolvedContent),
+      };
+    }
+
+    return null;
+  }
+
+  private async readKnowledgeMapNoteFromVault(): Promise<AMSKnowledgeMapResponse | null> {
+    const normalizedPath = normalizePath(this.settings.knowledgeMapNotePath);
+    const target = this.app.vault.getAbstractFileByPath(normalizedPath);
+    if (!(target instanceof TFile)) {
+      return null;
+    }
+
+    const rawContent = await this.app.vault.cachedRead(target);
+    const content = stripFrontmatter(rawContent).trim();
+    if (!isUsableMemoryContent(content)) {
+      return null;
+    }
+
+    const rawMemoryId = this.readFrontmatterValue(rawContent, "ams_memory_id");
+    const rawVersion = this.readFrontmatterValue(rawContent, "ams_map_version");
+
+    return {
+      memory_id: rawMemoryId ?? this.settings.knowledgeMapCache?.memory_id ?? "knowledge-map-vault",
+      content,
+      map_version: Number(rawVersion ?? this.settings.knowledgeMapCache?.map_version ?? 1) || 1,
+      last_updated: new Date(target.stat.mtime).toISOString(),
+      token_count: estimateTokenCount(content),
+    };
+  }
+
+  private readFrontmatterValue(rawContent: string, key: string): string | null {
+    if (!rawContent.startsWith("---\n")) {
+      return null;
+    }
+
+    const endIndex = rawContent.indexOf("\n---\n", 4);
+    if (endIndex === -1) {
+      return null;
+    }
+
+    const prefix = `${key}:`;
+    for (const line of rawContent.slice(4, endIndex).split("\n")) {
+      if (line.startsWith(prefix)) {
+        const value = line.slice(prefix.length).trim();
+        return value || null;
+      }
+    }
+
+    return null;
+  }
+
+  private getCachedKnowledgeMap(): AMSKnowledgeMapResponse | null {
+    const cached = normalizeKnowledgeMapCache(this.settings.knowledgeMapCache);
+    if (!cached) {
+      return null;
+    }
+
+    return {
+      memory_id: cached.memory_id,
+      content: cached.content,
+      map_version: cached.map_version,
+      last_updated: cached.last_updated,
+      token_count: cached.token_count,
+    };
+  }
+
+  private async persistKnowledgeMapCache(map: AMSKnowledgeMapResponse): Promise<void> {
+    const nextCache: AMSKnowledgeMapCache = {
+      ...map,
+      token_count: map.token_count || estimateTokenCount(map.content),
+      cached_at: new Date().toISOString(),
+    };
+    const previousCache = normalizeKnowledgeMapCache(this.settings.knowledgeMapCache);
+    if (
+      previousCache &&
+      previousCache.memory_id === nextCache.memory_id &&
+      previousCache.content === nextCache.content &&
+      previousCache.map_version === nextCache.map_version &&
+      previousCache.last_updated === nextCache.last_updated &&
+      previousCache.token_count === nextCache.token_count
+    ) {
+      return;
+    }
+
+    this.settings.knowledgeMapCache = nextCache;
+    await this.saveSettings();
   }
 
   private async readVaultNoteContent(filePath: string): Promise<string | null> {
