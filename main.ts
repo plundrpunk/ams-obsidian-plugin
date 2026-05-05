@@ -470,31 +470,30 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
         },
       });
 
+      // ⚡ Bolt: Schwartzian transform to calculate sort scores exactly once per item,
+      // avoiding redundant string operations and Date.parse() calls during sort.
       const candidates = searchResponse.results
         .filter((result) => (result.memory.tags ?? []).includes("knowledge-map"))
-        .sort((left, right) => {
-          const archivePenalty = (value: string) => (value.startsWith("99_Archive/") ? -1 : 0);
-          const conflictPenalty = (value: string) => (value.includes("sync-conflict") ? -1 : 0);
-          const leftScore =
-            archivePenalty(left.memory.file_path) +
-            conflictPenalty(left.memory.file_path) +
-            Date.parse(left.memory.creation_timestamp);
-          const rightScore =
-            archivePenalty(right.memory.file_path) +
-            conflictPenalty(right.memory.file_path) +
-            Date.parse(right.memory.creation_timestamp);
-          return rightScore - leftScore;
-        });
+        .map((result) => {
+          const archivePenalty = result.memory.file_path.startsWith("99_Archive/") ? -1 : 0;
+          const conflictPenalty = result.memory.file_path.includes("sync-conflict") ? -1 : 0;
+          const score = archivePenalty + conflictPenalty + Date.parse(result.memory.creation_timestamp);
+          return { result, score };
+        })
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.result);
 
       for (const candidate of candidates) {
         const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
         const apiContent = apiMemory?.content;
-        const localContent = await this.readVaultNoteContent(candidate.memory.file_path);
-        const resolvedContent = isUsableMemoryContent(apiContent)
-          ? apiContent
-          : isUsableMemoryContent(localContent)
-            ? localContent
-            : null;
+
+        // ⚡ Bolt: Lazy evaluation of local content. Only invoke expensive disk read
+        // and string manipulations if the API content is missing or unusable.
+        let resolvedContent = isUsableMemoryContent(apiContent) ? apiContent : null;
+        if (!resolvedContent) {
+            const localContent = await this.readVaultNoteContent(candidate.memory.file_path);
+            resolvedContent = isUsableMemoryContent(localContent) ? localContent : null;
+        }
 
         if (!resolvedContent) {
           continue;
@@ -804,7 +803,10 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
   private async tryGetMemory(memoryId: string): Promise<AMSMemoryWithContent | null> {
     try {
       return await this.getMemory(memoryId);
-    } catch (_error) {
+    } catch (error) {
+      // ⚡ Bolt: Log the error for traceability since this is a 'best-effort' call.
+      // Returning null is safe here as the application will fall back to local vault data.
+      console.debug(`Failed to fetch memory ${memoryId} from API:`, error);
       return null;
     }
   }
