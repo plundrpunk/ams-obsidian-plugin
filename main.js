@@ -289,18 +289,20 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
           tags: ["knowledge-map"]
         }
       });
-      const candidates = searchResponse.results.filter((result) => (result.memory.tags ?? []).includes("knowledge-map")).sort((left, right) => {
-        const archivePenalty = (value) => value.startsWith("99_Archive/") ? -1 : 0;
-        const conflictPenalty = (value) => value.includes("sync-conflict") ? -1 : 0;
-        const leftScore = archivePenalty(left.memory.file_path) + conflictPenalty(left.memory.file_path) + Date.parse(left.memory.creation_timestamp);
-        const rightScore = archivePenalty(right.memory.file_path) + conflictPenalty(right.memory.file_path) + Date.parse(right.memory.creation_timestamp);
-        return rightScore - leftScore;
-      });
+      const candidates = searchResponse.results.filter((result) => (result.memory.tags ?? []).includes("knowledge-map")).map((result) => {
+        const archivePenalty = result.memory.file_path.startsWith("99_Archive/") ? -1 : 0;
+        const conflictPenalty = result.memory.file_path.includes("sync-conflict") ? -1 : 0;
+        const score = archivePenalty + conflictPenalty + Date.parse(result.memory.creation_timestamp);
+        return { result, score };
+      }).sort((a, b) => b.score - a.score).map((item) => item.result);
       for (const candidate of candidates) {
         const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
         const apiContent = apiMemory?.content;
-        const localContent = await this.readVaultNoteContent(candidate.memory.file_path);
-        const resolvedContent = isUsableMemoryContent(apiContent) ? apiContent : isUsableMemoryContent(localContent) ? localContent : null;
+        let resolvedContent = isUsableMemoryContent(apiContent) ? apiContent : null;
+        if (!resolvedContent) {
+          const localContent = await this.readVaultNoteContent(candidate.memory.file_path);
+          resolvedContent = isUsableMemoryContent(localContent) ? localContent : null;
+        }
         if (!resolvedContent) {
           continue;
         }
@@ -534,7 +536,8 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
   async tryGetMemory(memoryId) {
     try {
       return await this.getMemory(memoryId);
-    } catch (_error) {
+    } catch (error) {
+      console.debug(`Failed to fetch memory ${memoryId} from API:`, error);
       return null;
     }
   }
