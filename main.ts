@@ -978,7 +978,11 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
 
     const existing = this.app.vault.getAbstractFileByPath(normalized);
     if (existing instanceof TFile) {
-      await this.app.vault.modify(existing, content);
+      // ⚡ Bolt: Prevent unnecessary disk I/O and indexing if content hasn't changed
+      const currentContent = await this.app.vault.read(existing);
+      if (currentContent !== content) {
+        await this.app.vault.modify(existing, content);
+      }
       return existing;
     }
 
