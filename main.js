@@ -678,7 +678,10 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
     await this.ensureFolderExists(folderPath);
     const existing = this.app.vault.getAbstractFileByPath(normalized);
     if (existing instanceof import_obsidian.TFile) {
-      await this.app.vault.modify(existing, content);
+      const currentContent = await this.app.vault.read(existing);
+      if (currentContent !== content) {
+        await this.app.vault.modify(existing, content);
+      }
       return existing;
     }
     return this.app.vault.create(normalized, content);
