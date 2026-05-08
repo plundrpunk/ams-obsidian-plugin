@@ -232,6 +232,13 @@ function isUsableMemoryContent(content: string | null | undefined): content is s
     return false;
   }
 
+  // ⚡ Bolt: Fast-path string length check to avoid allocating new strings via .trim()
+  // for large contents (like knowledge maps) when they are clearly valid.
+  // The unavailable string literal is 42 characters long.
+  if (content.length > 100) {
+    return true;
+  }
+
   return content.trim() !== "[Content unavailable - vault file missing]";
 }
 
