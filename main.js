@@ -89,6 +89,9 @@ function isUsableMemoryContent(content) {
   if (!content) {
     return false;
   }
+  if (content.length > 100) {
+    return true;
+  }
   return content.trim() !== "[Content unavailable - vault file missing]";
 }
 function normalizeKnowledgeMapCache(value) {

@@ -232,6 +232,12 @@ function isUsableMemoryContent(content: string | null | undefined): content is s
     return false;
   }
 
+  // ⚡ Bolt: Fast-path length check to avoid expensive `.trim()` on large memory contents.
+  // The error literal is 42 characters long. If content is much larger, it's definitely usable.
+  if (content.length > 100) {
+    return true;
+  }
+
   return content.trim() !== "[Content unavailable - vault file missing]";
 }
 
