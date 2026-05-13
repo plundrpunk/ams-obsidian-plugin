@@ -232,6 +232,12 @@ function isUsableMemoryContent(content: string | null | undefined): content is s
     return false;
   }
 
+  // ⚡ Bolt: Fast-path length check prevents expensive string allocation and GC overhead
+  // when checking large strings (e.g. file contents) against this short literal.
+  if (content.length > 100) {
+    return true;
+  }
+
   return content.trim() !== "[Content unavailable - vault file missing]";
 }
 
