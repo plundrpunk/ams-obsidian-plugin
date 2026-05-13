@@ -232,7 +232,14 @@ function isUsableMemoryContent(content: string | null | undefined): content is s
     return false;
   }
 
-  return content.trim() !== "[Content unavailable - vault file missing]";
+  // ⚡ Bolt: Fast-path length check to avoid expensive string allocations and garbage collection
+  // overhead when calling .trim() on potentially large strings.
+  const UNAVAILABLE_MSG = "[Content unavailable - vault file missing]";
+  if (content.length > UNAVAILABLE_MSG.length + 100) {
+    return true;
+  }
+
+  return content.trim() !== UNAVAILABLE_MSG;
 }
 
 function normalizeKnowledgeMapCache(value: unknown): AMSKnowledgeMapCache | null {

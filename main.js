@@ -89,7 +89,11 @@ function isUsableMemoryContent(content) {
   if (!content) {
     return false;
   }
-  return content.trim() !== "[Content unavailable - vault file missing]";
+  const UNAVAILABLE_MSG = "[Content unavailable - vault file missing]";
+  if (content.length > UNAVAILABLE_MSG.length + 100) {
+    return true;
+  }
+  return content.trim() !== UNAVAILABLE_MSG;
 }
 function normalizeKnowledgeMapCache(value) {
   if (!value || typeof value !== "object") {
