@@ -5,3 +5,11 @@
 ## 2026-05-04 - Debouncing disk I/O in Obsidian Settings
 **Learning:** In Obsidian plugins, `saveData()` triggers disk I/O writes to the plugin's `data.json` file. Binding synchronous `saveData()` calls to `onChange` events in text inputs within the Settings tab can cause significant performance bottlenecks and UI lag due to frequent, redundant disk writes on every keystroke.
 **Action:** Use Obsidian's built-in `debounce` utility (imported from `obsidian`) to wrap `saveData()` calls originating from frequent UI events (like text inputs). Retain synchronous `saveData()` for critical state transitions (e.g., onboarding completion) to guarantee data persistence.
+
+## 2026-05-11 - Fast-path validation to avoid large string allocations
+**Learning:** In applications dealing with file contents or large string payloads, validating the entire payload against a short literal (like a specific error message) using string-copying methods like `.trim()` causes unnecessary memory allocations and garbage collection overhead.
+**Action:** Before invoking string transformations on potentially massive strings, use a fast-path length check against the length of the literal being matched. If the payload length significantly exceeds the literal, skip the transformation.
+
+## 2026-05-18 - Avoiding string and array allocations during text parsing
+**Learning:** When extracting short, specific data from a large block of text (like reading a key-value pair from YAML frontmatter), creating intermediate strings and arrays using `text.slice(...).split('\n')` introduces unnecessary memory allocation overhead.
+**Action:** Use an index-based search (e.g., `text.indexOf(key, startIndex)`) to locate boundaries directly within the original string. This allows for a single, targeted `slice()` to extract the exact value, avoiding the allocation of temporary arrays and intermediate string copies.

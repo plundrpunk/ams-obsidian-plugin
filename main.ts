@@ -232,6 +232,12 @@ function isUsableMemoryContent(content: string | null | undefined): content is s
     return false;
   }
 
+  // ⚡ Bolt: Fast-path length check to avoid expensive `.trim()` on large memory contents.
+  // The error literal is 42 characters long. If content is much larger, it's definitely usable.
+  if (content.length > 100) {
+    return true;
+  }
+
   return content.trim() !== "[Content unavailable - vault file missing]";
 }
 
@@ -891,15 +897,23 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
       return null;
     }
 
-    const prefix = `${key}:`;
-    for (const line of rawContent.slice(4, endIndex).split("\n")) {
-      if (line.startsWith(prefix)) {
-        const value = line.slice(prefix.length).trim();
-        return value || null;
-      }
+    // ⚡ Bolt: Use index-based search instead of `slice().split("\n")`
+    // to prevent unnecessary string and array allocations during frontmatter parsing.
+    const prefix = `\n${key}:`;
+    const prefixIndex = rawContent.indexOf(prefix, 3);
+
+    if (prefixIndex === -1 || prefixIndex > endIndex) {
+      return null;
     }
 
-    return null;
+    const valueStart = prefixIndex + prefix.length;
+    let lineEnd = rawContent.indexOf("\n", valueStart);
+    if (lineEnd === -1 || lineEnd > endIndex) {
+      lineEnd = endIndex;
+    }
+
+    const value = rawContent.slice(valueStart, lineEnd).trim();
+    return value || null;
   }
 
   private getCachedKnowledgeMap(): AMSKnowledgeMapResponse | null {
