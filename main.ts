@@ -232,6 +232,11 @@ function isUsableMemoryContent(content: string | null | undefined): content is s
     return false;
   }
 
+  // ⚡ Bolt: Fast-path length check before expensive .trim() on potentially large files
+  if (content.length > 100) {
+    return true;
+  }
+
   return content.trim() !== "[Content unavailable - vault file missing]";
 }
 
@@ -891,12 +896,24 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
       return null;
     }
 
-    const prefix = `${key}:`;
-    for (const line of rawContent.slice(4, endIndex).split("\n")) {
-      if (line.startsWith(prefix)) {
-        const value = line.slice(prefix.length).trim();
-        return value || null;
+    // ⚡ Bolt: Avoid intermediate string allocations (.slice().split('\n')) by using index-based searches
+    let valueStart = -1;
+    if (rawContent.startsWith(`---\n${key}:`)) {
+      valueStart = 4 + key.length + 1;
+    } else {
+      const searchStr = `\n${key}:`;
+      const matchIndex = rawContent.indexOf(searchStr, 3);
+      if (matchIndex !== -1 && matchIndex < endIndex) {
+        valueStart = matchIndex + searchStr.length;
       }
+    }
+
+    if (valueStart !== -1 && valueStart < endIndex) {
+      let lineEndIndex = rawContent.indexOf("\n", valueStart);
+      if (lineEndIndex === -1 || lineEndIndex > endIndex) {
+        lineEndIndex = endIndex;
+      }
+      return rawContent.slice(valueStart, lineEndIndex).trim() || null;
     }
 
     return null;
