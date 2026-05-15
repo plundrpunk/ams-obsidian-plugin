@@ -610,14 +610,27 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
     if (endIndex === -1) {
       return null;
     }
-    const prefix = `${key}:`;
-    for (const line of rawContent.slice(4, endIndex).split("\n")) {
-      if (line.startsWith(prefix)) {
-        const value = line.slice(prefix.length).trim();
-        return value || null;
+    let searchStr = `
+${key}:`;
+    let keyIdx = rawContent.indexOf(searchStr, 3);
+    if (keyIdx === -1 || keyIdx >= endIndex) {
+      const firstLinePrefix = `---
+${key}:`;
+      if (rawContent.startsWith(firstLinePrefix)) {
+        keyIdx = 0;
+        searchStr = `---
+${key}:`;
+      } else {
+        return null;
       }
     }
-    return null;
+    const valueStartIdx = keyIdx + searchStr.length;
+    let valueEndIdx = rawContent.indexOf("\n", valueStartIdx);
+    if (valueEndIdx === -1 || valueEndIdx > endIndex) {
+      valueEndIdx = endIndex;
+    }
+    const value = rawContent.slice(valueStartIdx, valueEndIdx).trim();
+    return value || null;
   }
   getCachedKnowledgeMap() {
     const cached = normalizeKnowledgeMapCache(this.settings.knowledgeMapCache);

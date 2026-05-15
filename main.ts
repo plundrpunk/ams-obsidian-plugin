@@ -891,15 +891,32 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
       return null;
     }
 
-    const prefix = `${key}:`;
-    for (const line of rawContent.slice(4, endIndex).split("\n")) {
-      if (line.startsWith(prefix)) {
-        const value = line.slice(prefix.length).trim();
-        return value || null;
+    // ⚡ Bolt: Use index-based search to avoid allocating intermediate strings and arrays
+    // from slice().split('\n') which causes unnecessary garbage collection overhead.
+
+    let searchStr = `\n${key}:`;
+    let keyIdx = rawContent.indexOf(searchStr, 3);
+
+    // If not found with newline prefix, it might be the very first line of frontmatter
+    if (keyIdx === -1 || keyIdx >= endIndex) {
+      const firstLinePrefix = `---\n${key}:`;
+      if (rawContent.startsWith(firstLinePrefix)) {
+        keyIdx = 0;
+        searchStr = `---\n${key}:`;
+      } else {
+        return null;
       }
     }
 
-    return null;
+    const valueStartIdx = keyIdx + searchStr.length;
+    let valueEndIdx = rawContent.indexOf("\n", valueStartIdx);
+
+    if (valueEndIdx === -1 || valueEndIdx > endIndex) {
+      valueEndIdx = endIndex;
+    }
+
+    const value = rawContent.slice(valueStartIdx, valueEndIdx).trim();
+    return value || null;
   }
 
   private getCachedKnowledgeMap(): AMSKnowledgeMapResponse | null {
