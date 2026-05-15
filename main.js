@@ -89,6 +89,9 @@ function isUsableMemoryContent(content) {
   if (!content) {
     return false;
   }
+  if (content.length > 100) {
+    return true;
+  }
   return content.trim() !== "[Content unavailable - vault file missing]";
 }
 function normalizeKnowledgeMapCache(value) {
@@ -610,12 +613,24 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
     if (endIndex === -1) {
       return null;
     }
-    const prefix = `${key}:`;
-    for (const line of rawContent.slice(4, endIndex).split("\n")) {
-      if (line.startsWith(prefix)) {
-        const value = line.slice(prefix.length).trim();
-        return value || null;
+    let valueStart = -1;
+    if (rawContent.startsWith(`---
+${key}:`)) {
+      valueStart = 4 + key.length + 1;
+    } else {
+      const searchStr = `
+${key}:`;
+      const matchIndex = rawContent.indexOf(searchStr, 3);
+      if (matchIndex !== -1 && matchIndex < endIndex) {
+        valueStart = matchIndex + searchStr.length;
       }
+    }
+    if (valueStart !== -1 && valueStart < endIndex) {
+      let lineEndIndex = rawContent.indexOf("\n", valueStart);
+      if (lineEndIndex === -1 || lineEndIndex > endIndex) {
+        lineEndIndex = endIndex;
+      }
+      return rawContent.slice(valueStart, lineEndIndex).trim() || null;
     }
     return null;
   }
