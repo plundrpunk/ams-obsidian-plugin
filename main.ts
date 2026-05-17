@@ -835,13 +835,19 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
       .sort((left, right) => right.score - left.score)
       .map((item) => item.result);
 
-    for (const candidate of candidates) {
-      const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
-      let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
-      if (!resolvedContent) {
-        resolvedContent = await this.readVaultNoteContent(candidate.memory.file_path);
-      }
+    // ⚡ Bolt: Execute candidate fetches in parallel using Promise.all to eliminate sequential network/disk latency overhead
+    const resolvedCandidates = await Promise.all(
+      candidates.map(async (candidate) => {
+        const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
+        let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
+        if (!resolvedContent) {
+          resolvedContent = await this.readVaultNoteContent(candidate.memory.file_path);
+        }
+        return { candidate, apiMemory, resolvedContent };
+      })
+    );
 
+    for (const { candidate, apiMemory, resolvedContent } of resolvedCandidates) {
       if (!resolvedContent) {
         continue;
       }

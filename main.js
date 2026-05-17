@@ -563,12 +563,17 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
       }
     });
     const candidates = searchResponse.results.filter((result) => (result.memory.tags ?? []).includes("knowledge-map")).map((result) => ({ result, score: scoreKnowledgeMapCandidate(result) })).sort((left, right) => right.score - left.score).map((item) => item.result);
-    for (const candidate of candidates) {
-      const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
-      let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
-      if (!resolvedContent) {
-        resolvedContent = await this.readVaultNoteContent(candidate.memory.file_path);
-      }
+    const resolvedCandidates = await Promise.all(
+      candidates.map(async (candidate) => {
+        const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
+        let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
+        if (!resolvedContent) {
+          resolvedContent = await this.readVaultNoteContent(candidate.memory.file_path);
+        }
+        return { candidate, apiMemory, resolvedContent };
+      })
+    );
+    for (const { candidate, apiMemory, resolvedContent } of resolvedCandidates) {
       if (!resolvedContent) {
         continue;
       }

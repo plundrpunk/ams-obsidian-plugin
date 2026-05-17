@@ -9,3 +9,7 @@
 ## 2026-05-14 - String allocation optimizations for large text
 **Learning:** In JavaScript, methods like `.trim()`, `.slice()`, and `.split()` on very large strings create entirely new strings and arrays, leading to significant memory allocation and garbage collection overhead. This is especially problematic when parsing large files like Obsidian notes.
 **Action:** Use fast-path `.length` checks before `.trim()` to avoid copying large strings unnecessarily. For targeted data extraction (like frontmatter), use index-based searches (`indexOf`) instead of slicing and splitting the string.
+
+## 2026-05-17 - Parallelizing Network/Disk I/O
+**Learning:** In asynchronous logic iterating over candidate results (e.g., fetching missing data or reading local files for search results), using a sequential `for...of` loop with `await` blocks on network or disk I/O for each iteration. This unnecessarily serializes independent data fetches, leading to high latency.
+**Action:** Use `Promise.all()` with an `array.map` to execute independent network or disk reads concurrently before filtering or extracting the final selected result.
