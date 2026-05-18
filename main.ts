@@ -813,7 +813,10 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
   private async tryGetMemory(memoryId: string): Promise<AMSMemoryWithContent | null> {
     try {
       return await this.getMemory(memoryId);
-    } catch (_error) {
+    } catch (error) {
+      // Returning null is safe here because it's a best-effort fallback;
+      // if the API call fails, we proceed to check the local vault.
+      console.debug(`Failed to fetch memory ${memoryId} from API:`, error);
       return null;
     }
   }
@@ -835,9 +838,17 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
       .sort((left, right) => right.score - left.score)
       .map((item) => item.result);
 
-    for (const candidate of candidates) {
-      const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
+    // ⚡ Bolt: Fetch API candidates concurrently to minimize network roundtrips
+    const apiMemories = await Promise.all(
+      candidates.map((candidate) => this.tryGetMemory(candidate.memory.memory_id))
+    );
+
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      const apiMemory = apiMemories[i];
+
       let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
+      // Lazily evaluate local vault reading only if the API content is missing
       if (!resolvedContent) {
         resolvedContent = await this.readVaultNoteContent(candidate.memory.file_path);
       }

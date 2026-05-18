@@ -548,7 +548,8 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
   async tryGetMemory(memoryId) {
     try {
       return await this.getMemory(memoryId);
-    } catch (_error) {
+    } catch (error) {
+      console.debug(`Failed to fetch memory ${memoryId} from API:`, error);
       return null;
     }
   }
@@ -563,8 +564,12 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
       }
     });
     const candidates = searchResponse.results.filter((result) => (result.memory.tags ?? []).includes("knowledge-map")).map((result) => ({ result, score: scoreKnowledgeMapCandidate(result) })).sort((left, right) => right.score - left.score).map((item) => item.result);
-    for (const candidate of candidates) {
-      const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
+    const apiMemories = await Promise.all(
+      candidates.map((candidate) => this.tryGetMemory(candidate.memory.memory_id))
+    );
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      const apiMemory = apiMemories[i];
       let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
       if (!resolvedContent) {
         resolvedContent = await this.readVaultNoteContent(candidate.memory.file_path);
