@@ -9,3 +9,7 @@
 ## 2026-05-14 - String allocation optimizations for large text
 **Learning:** In JavaScript, methods like `.trim()`, `.slice()`, and `.split()` on very large strings create entirely new strings and arrays, leading to significant memory allocation and garbage collection overhead. This is especially problematic when parsing large files like Obsidian notes.
 **Action:** Use fast-path `.length` checks before `.trim()` to avoid copying large strings unnecessarily. For targeted data extraction (like frontmatter), use index-based searches (`indexOf`) instead of slicing and splitting the string.
+
+## 2026-05-18 - Failed Optimization: Upfront Parallel Fetching in Early-Exit Loops
+**Learning:** Attempting to optimize a sequential `for...of` loop by replacing it with `Promise.all()` and `Array.map()` upfront is actually a worse optimization shape if the loop contains an early exit condition (like returning the first usable candidate). It forces all API fetches and fallback reads up front, performing unnecessary work when only the first successful item is needed.
+**Action:** Do not use `Promise.all()` for parallel fetching if the loop naturally exits early upon finding a valid result. Sequential iteration with early exits is more efficient in this specific scenario.
