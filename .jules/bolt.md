@@ -9,3 +9,7 @@
 ## 2026-05-14 - String allocation optimizations for large text
 **Learning:** In JavaScript, methods like `.trim()`, `.slice()`, and `.split()` on very large strings create entirely new strings and arrays, leading to significant memory allocation and garbage collection overhead. This is especially problematic when parsing large files like Obsidian notes.
 **Action:** Use fast-path `.length` checks before `.trim()` to avoid copying large strings unnecessarily. For targeted data extraction (like frontmatter), use index-based searches (`indexOf`) instead of slicing and splitting the string.
+
+## 2024-05-19 - String allocation optimizations for small tags
+**Learning:** In JavaScript, when splitting small strings or checking for conditions like a single word without commas, `.split(',')` combined with `.map()` and `.filter()` creates an excessive number of intermediate arrays. This adds significant allocation overhead to the garbage collector, especially in hot loops parsing tags.
+**Action:** Use a fast-path index-based search like `indexOf(',') === -1` to early return when splitting string parameters that lack the delimiter, effectively avoiding array instantiation overhead completely.
