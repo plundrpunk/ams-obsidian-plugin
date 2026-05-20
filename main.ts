@@ -195,6 +195,12 @@ function toCsv(tags: string[] | null | undefined): string {
 }
 
 function parseTags(raw: string): string[] {
+  // ⚡ Bolt: Fast-path for single tags without commas to avoid array allocation overhead
+  if (raw.indexOf(",") === -1) {
+    const trimmed = raw.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
   return raw
     .split(",")
     .map((tag) => tag.trim())
@@ -838,14 +844,11 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
       .sort((left, right) => right.score - left.score)
       .map((item) => item.result);
 
-    // ⚡ Bolt: Fetch API candidates concurrently to minimize network roundtrips
-    const apiMemories = await Promise.all(
-      candidates.map((candidate) => this.tryGetMemory(candidate.memory.memory_id))
-    );
-
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
-      const apiMemory = apiMemories[i];
+      // ⚡ Bolt: Fetch API candidates sequentially to avoid wasting network requests
+      // if an earlier candidate is successfully resolved (short-circuiting).
+      const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
 
       let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
       // Lazily evaluate local vault reading only if the API content is missing
