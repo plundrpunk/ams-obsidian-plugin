@@ -838,14 +838,10 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
       .sort((left, right) => right.score - left.score)
       .map((item) => item.result);
 
-    // ⚡ Bolt: Fetch API candidates concurrently to minimize network roundtrips
-    const apiMemories = await Promise.all(
-      candidates.map((candidate) => this.tryGetMemory(candidate.memory.memory_id))
-    );
-
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i];
-      const apiMemory = apiMemories[i];
+    for (const candidate of candidates) {
+      // ⚡ Bolt: Fetch API candidates sequentially to avoid wasting network requests
+      // if an earlier candidate is successfully resolved (short-circuiting).
+      const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
 
       let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
       // Lazily evaluate local vault reading only if the API content is missing
