@@ -66,10 +66,6 @@ function toCsv(tags) {
   return (tags ?? []).join(", ");
 }
 function parseTags(raw) {
-  if (raw.indexOf(",") === -1) {
-    const trimmed = raw.trim();
-    return trimmed ? [trimmed] : [];
-  }
   return raw.split(",").map((tag) => tag.trim()).filter(Boolean);
 }
 function encodeFilePathForUrl(filePath) {
@@ -568,8 +564,7 @@ var AMSMemoryCompanionPlugin = class extends import_obsidian.Plugin {
       }
     });
     const candidates = searchResponse.results.filter((result) => (result.memory.tags ?? []).includes("knowledge-map")).map((result) => ({ result, score: scoreKnowledgeMapCandidate(result) })).sort((left, right) => right.score - left.score).map((item) => item.result);
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i];
+    for (const candidate of candidates) {
       const apiMemory = await this.tryGetMemory(candidate.memory.memory_id);
       let resolvedContent = isUsableMemoryContent(apiMemory?.content) ? apiMemory.content : null;
       if (!resolvedContent) {
