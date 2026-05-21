@@ -195,6 +195,12 @@ function toCsv(tags: string[] | null | undefined): string {
 }
 
 function parseTags(raw: string): string[] {
+  // ⚡ Bolt: Fast-path for single tags/empty strings to avoid array allocations
+  if (raw.indexOf(",") === -1) {
+    const trimmed = raw.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
   return raw
     .split(",")
     .map((tag) => tag.trim())
