@@ -66,6 +66,10 @@ function toCsv(tags) {
   return (tags ?? []).join(", ");
 }
 function parseTags(raw) {
+  if (raw.indexOf(",") === -1) {
+    const trimmed = raw.trim();
+    return trimmed ? [trimmed] : [];
+  }
   return raw.split(",").map((tag) => tag.trim()).filter(Boolean);
 }
 function encodeFilePathForUrl(filePath) {
