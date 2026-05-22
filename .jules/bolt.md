@@ -9,3 +9,7 @@
 ## 2026-05-14 - String allocation optimizations for large text
 **Learning:** In JavaScript, methods like `.trim()`, `.slice()`, and `.split()` on very large strings create entirely new strings and arrays, leading to significant memory allocation and garbage collection overhead. This is especially problematic when parsing large files like Obsidian notes.
 **Action:** Use fast-path `.length` checks before `.trim()` to avoid copying large strings unnecessarily. For targeted data extraction (like frontmatter), use index-based searches (`indexOf`) instead of slicing and splitting the string.
+
+## 2026-05-22 - Rejected parseTags optimization
+**Learning:** Optimizing a non-critical helper like `parseTags` with a fast-path for single tags is considered a marginal improvement that doesn't move the meter enough. Adding benchmark artifacts for such tiny optimizations makes the codebase noisier than the benefit provided.
+**Action:** Focus on identifying and optimizing actual performance bottlenecks in critical paths rather than micro-optimizing small helpers. Ensure that the complexity or noise added by benchmarks is justified by a significant performance win.
