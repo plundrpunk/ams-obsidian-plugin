@@ -9,3 +9,7 @@
 ## 2026-05-14 - String allocation optimizations for large text
 **Learning:** In JavaScript, methods like `.trim()`, `.slice()`, and `.split()` on very large strings create entirely new strings and arrays, leading to significant memory allocation and garbage collection overhead. This is especially problematic when parsing large files like Obsidian notes.
 **Action:** Use fast-path `.length` checks before `.trim()` to avoid copying large strings unnecessarily. For targeted data extraction (like frontmatter), use index-based searches (`indexOf`) instead of slicing and splitting the string.
+
+## 2026-06-03 - Path parsing optimizations
+**Learning:** Extracting filenames or final segments from paths using `.split('/').pop()` creates intermediate array allocations. This introduces unnecessary garbage collection overhead, especially when this operation is performed frequently, such as in render loops for search results or lists.
+**Action:** Use `.lastIndexOf('/')` to find the separator position and `.slice()` to extract the final segment instead of splitting the entire string into an array.
