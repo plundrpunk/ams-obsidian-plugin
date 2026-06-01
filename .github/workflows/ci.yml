@@ -4,10 +4,15 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+    types: [labeled, synchronize, reopened]
   workflow_dispatch:
 
 jobs:
   typecheck:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,6 +31,7 @@ jobs:
         run: npm run typecheck
 
   build:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,6 +50,7 @@ jobs:
         run: npm run build
 
   verify-generated-files:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'run-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
