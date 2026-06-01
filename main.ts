@@ -186,7 +186,9 @@ function normalizeApiBaseUrl(value: string): string {
 }
 
 function deriveTitleFromPath(filePath: string): string {
-  const name = filePath.split("/").pop() ?? filePath;
+  // ⚡ Bolt: Avoid intermediate array allocation from .split().pop() by using lastIndexOf and slice
+  const lastSlashIndex = filePath.lastIndexOf("/");
+  const name = lastSlashIndex !== -1 ? filePath.slice(lastSlashIndex + 1) : filePath;
   return name.replace(/\.md$/i, "").replace(/_/g, " ");
 }
 

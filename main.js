@@ -59,7 +59,8 @@ function normalizeApiBaseUrl(value) {
   return value.trim().replace(/\/+$/, "");
 }
 function deriveTitleFromPath(filePath) {
-  const name = filePath.split("/").pop() ?? filePath;
+  const lastSlashIndex = filePath.lastIndexOf("/");
+  const name = lastSlashIndex !== -1 ? filePath.slice(lastSlashIndex + 1) : filePath;
   return name.replace(/\.md$/i, "").replace(/_/g, " ");
 }
 function toCsv(tags) {
