@@ -71,7 +71,18 @@ function parseTags(raw) {
     const trimmed = raw.trim();
     return trimmed ? [trimmed] : [];
   }
-  return raw.split(",").map((tag) => tag.trim()).filter(Boolean);
+  const result = [];
+  let currentStart = 0;
+  for (let i = 0; i <= raw.length; i++) {
+    if (i === raw.length || raw[i] === ",") {
+      const trimmed = raw.slice(currentStart, i).trim();
+      if (trimmed) {
+        result.push(trimmed);
+      }
+      currentStart = i + 1;
+    }
+  }
+  return result;
 }
 function encodeFilePathForUrl(filePath) {
   return filePath.split("/").filter(Boolean).map((segment) => encodeURIComponent(segment)).join("/");
