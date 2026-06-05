@@ -202,10 +202,26 @@ function parseTags(raw: string): string[] {
     const trimmed = raw.trim();
     return trimmed ? [trimmed] : [];
   }
-  return raw
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+
+  // ⚡ Bolt: Single-pass loop to avoid intermediate array allocations from split/map/filter
+  const result: string[] = [];
+  let start = 0;
+  let commaIndex: number;
+
+  while ((commaIndex = raw.indexOf(",", start)) !== -1) {
+    const tag = raw.substring(start, commaIndex).trim();
+    if (tag) {
+      result.push(tag);
+    }
+    start = commaIndex + 1;
+  }
+
+  const lastTag = raw.substring(start).trim();
+  if (lastTag) {
+    result.push(lastTag);
+  }
+
+  return result;
 }
 
 function encodeFilePathForUrl(filePath: string): string {
