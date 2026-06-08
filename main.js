@@ -708,6 +708,12 @@ ${key}:`;
     return this.app.vault.create(normalized, content);
   }
   extractErrorDetail(responseText) {
+    if (!responseText) return responseText;
+    const firstChar = responseText.trimStart()[0];
+    const isValidJsonStart = firstChar === "{" || firstChar === "[" || firstChar === '"' || firstChar === "t" || firstChar === "f" || firstChar === "n" || firstChar === "-" || firstChar >= "0" && firstChar <= "9";
+    if (!isValidJsonStart) {
+      return responseText;
+    }
     try {
       const parsed = JSON.parse(responseText);
       if (typeof parsed.detail === "string") {
