@@ -709,6 +709,10 @@ ${key}:`;
   }
   extractErrorDetail(responseText) {
     try {
+      const trimmed = responseText.trimStart();
+      if (trimmed[0] !== "{" && trimmed[0] !== "[" && trimmed[0] !== '"' && trimmed[0] !== "t" && trimmed[0] !== "f" && trimmed[0] !== "n" && !(trimmed[0] >= "0" && trimmed[0] <= "9") && trimmed[0] !== "-") {
+        return responseText;
+      }
       const parsed = JSON.parse(responseText);
       if (typeof parsed.detail === "string") {
         return parsed.detail;
