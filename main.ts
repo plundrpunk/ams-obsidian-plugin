@@ -1021,6 +1021,16 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
   }
 
   private extractErrorDetail(responseText: string): string {
+    if (!responseText) {
+      return responseText;
+    }
+
+    // ⚡ Bolt: Fast-path string check to avoid expensive SyntaxErrors on non-JSON payloads
+    const firstChar = responseText.trimStart()[0];
+    if (!'{["tfn-0123456789'.includes(firstChar)) {
+      return responseText;
+    }
+
     try {
       const parsed = JSON.parse(responseText) as {
         detail?: string | { message?: string; reason?: string };

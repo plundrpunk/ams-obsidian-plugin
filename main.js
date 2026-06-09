@@ -708,6 +708,13 @@ ${key}:`;
     return this.app.vault.create(normalized, content);
   }
   extractErrorDetail(responseText) {
+    if (!responseText) {
+      return responseText;
+    }
+    const firstChar = responseText.trimStart()[0];
+    if (!'{["tfn-0123456789'.includes(firstChar)) {
+      return responseText;
+    }
     try {
       const parsed = JSON.parse(responseText);
       if (typeof parsed.detail === "string") {
