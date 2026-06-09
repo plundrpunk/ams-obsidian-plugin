@@ -1021,6 +1021,14 @@ export default class AMSMemoryCompanionPlugin extends Plugin {
   }
 
   private extractErrorDetail(responseText: string): string {
+    // ⚡ Bolt: Fast-path string check to avoid generating internal SyntaxErrors on plain text error payloads
+    if (!responseText) return "";
+    const firstChar = responseText.trimStart()[0];
+    const validJsonStarts = ["{", "[", '"', "t", "f", "n", "-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+    if (!firstChar || !validJsonStarts.includes(firstChar)) {
+      return responseText;
+    }
+
     try {
       const parsed = JSON.parse(responseText) as {
         detail?: string | { message?: string; reason?: string };

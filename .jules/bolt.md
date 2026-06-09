@@ -9,3 +9,7 @@
 ## 2026-05-14 - String allocation optimizations for large text
 **Learning:** In JavaScript, methods like `.trim()`, `.slice()`, and `.split()` on very large strings create entirely new strings and arrays, leading to significant memory allocation and garbage collection overhead. This is especially problematic when parsing large files like Obsidian notes.
 **Action:** Use fast-path `.length` checks before `.trim()` to avoid copying large strings unnecessarily. For targeted data extraction (like frontmatter), use index-based searches (`indexOf`) instead of slicing and splitting the string.
+
+## 2026-05-15 - Fast-path check for JSON parsing
+**Learning:** Calling `JSON.parse()` on potentially large non-JSON strings (like plain text or HTML HTTP error responses) causes the JavaScript engine to throw and catch an internal `SyntaxError`, which creates severe performance and memory allocation bottlenecks.
+**Action:** Before executing `JSON.parse()` on unknown or fallback payloads, implement a fast-path string check. Use `text.trimStart()[0]` to inspect the first non-whitespace character without allocating an intermediate copied string, and verify it matches one of the valid JSON start characters (`{`, `[`, `"`, `t`, `f`, `n`, `-`, or digits `0-9`).
