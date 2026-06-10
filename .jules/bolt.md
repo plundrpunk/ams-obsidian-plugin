@@ -13,3 +13,7 @@
 ## 2026-06-08 - Fast-path check for JSON.parse
 **Learning:** Parsing large plain text responses (such as verbose HTML error pages) using `JSON.parse` inside a `try/catch` block incurs a severe performance penalty because V8 generates a slow internal `SyntaxError` when parsing fails.
 **Action:** Always implement a fast-path string check (e.g., verifying if the first non-whitespace character is `{` or `[`) before invoking `JSON.parse` on external payloads.
+
+## 2026-06-10 - Rejected Micro-Optimization in parseTags
+**Learning:** Replaced an idiomatic array chain (`.split(",").map().filter()`) with a single-pass `while` loop to avoid intermediate allocations. The PR was rejected because the performance gain on a small target (tags) did not justify the loss of code readability.
+**Action:** When acting as Bolt, avoid micro-optimizations that inherently reduce code readability for minimal, unmeasurable gains in typical usage. Specifically, avoid manual comma-scanning loops as replacements for simple, idiomatic tag parsing.
