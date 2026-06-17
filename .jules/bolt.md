@@ -13,3 +13,6 @@
 ## 2026-06-08 - Fast-path check for JSON.parse
 **Learning:** Parsing large plain text responses (such as verbose HTML error pages) using `JSON.parse` inside a `try/catch` block incurs a severe performance penalty because V8 generates a slow internal `SyntaxError` when parsing fails.
 **Action:** Always implement a fast-path string check (e.g., verifying if the first non-whitespace character is `{` or `[`) before invoking `JSON.parse` on external payloads.
+## 2026-06-25 - Avoid map/filter array allocations for tag strings
+**Learning:** When parsing arrays from strings (like comma-separated tags), using idiomatic JS chains like `.split(',').map().filter()` causes unnecessary intermediate array allocations, increasing memory pressure and garbage collection pauses. This is especially impactful when processing lots of tags at once.
+**Action:** Use a fast-path check for the separator (e.g., `indexOf(',') === -1`). If it exists, use a single-pass loop with `slice` and `trim` instead of chaining array methods.
