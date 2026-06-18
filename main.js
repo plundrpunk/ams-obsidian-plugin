@@ -67,11 +67,22 @@ function toCsv(tags) {
   return (tags ?? []).join(", ");
 }
 function parseTags(raw) {
-  if (raw.indexOf(",") === -1) {
+  let commaIdx = raw.indexOf(",");
+  if (commaIdx === -1) {
     const trimmed = raw.trim();
     return trimmed ? [trimmed] : [];
   }
-  return raw.split(",").map((tag) => tag.trim()).filter(Boolean);
+  const result = [];
+  let currentStart = 0;
+  while (commaIdx !== -1) {
+    const tag = raw.substring(currentStart, commaIdx).trim();
+    if (tag.length > 0) result.push(tag);
+    currentStart = commaIdx + 1;
+    commaIdx = raw.indexOf(",", currentStart);
+  }
+  const lastTag = raw.substring(currentStart).trim();
+  if (lastTag.length > 0) result.push(lastTag);
+  return result;
 }
 function encodeFilePathForUrl(filePath) {
   return filePath.split("/").filter(Boolean).map((segment) => encodeURIComponent(segment)).join("/");
