@@ -71,7 +71,18 @@ function parseTags(raw) {
     const trimmed = raw.trim();
     return trimmed ? [trimmed] : [];
   }
-  return raw.split(",").map((tag) => tag.trim()).filter(Boolean);
+  const result = [];
+  let startIndex = 0;
+  let commaIndex = raw.indexOf(",");
+  while (commaIndex !== -1) {
+    const tag = raw.slice(startIndex, commaIndex).trim();
+    if (tag) result.push(tag);
+    startIndex = commaIndex + 1;
+    commaIndex = raw.indexOf(",", startIndex);
+  }
+  const lastTag = raw.slice(startIndex).trim();
+  if (lastTag) result.push(lastTag);
+  return result;
 }
 function encodeFilePathForUrl(filePath) {
   return filePath.split("/").filter(Boolean).map((segment) => encodeURIComponent(segment)).join("/");

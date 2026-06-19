@@ -202,10 +202,26 @@ function parseTags(raw: string): string[] {
     const trimmed = raw.trim();
     return trimmed ? [trimmed] : [];
   }
-  return raw
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+
+  // ⚡ Bolt: Avoid intermediate array allocations for comma-separated tags
+  // 💡 What: Replaced `.split(',').map().filter()` with a single-pass `indexOf` loop.
+  // 🎯 Why: `.split()` allocates a full array of strings, `.map()` allocates another, and `.filter()` a third.
+  // 📊 Impact: Prevents 3 intermediate array allocations per call, reducing GC overhead and memory pressure during large syncs.
+  const result: string[] = [];
+  let startIndex = 0;
+  let commaIndex = raw.indexOf(",");
+
+  while (commaIndex !== -1) {
+    const tag = raw.slice(startIndex, commaIndex).trim();
+    if (tag) result.push(tag);
+    startIndex = commaIndex + 1;
+    commaIndex = raw.indexOf(",", startIndex);
+  }
+
+  const lastTag = raw.slice(startIndex).trim();
+  if (lastTag) result.push(lastTag);
+
+  return result;
 }
 
 function encodeFilePathForUrl(filePath: string): string {
